@@ -1,36 +1,47 @@
 import express from 'express';
-import { addonBuilder } from 'stremio-addon-sdk';
+import cors from 'cors';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.use(cors());
+
+const PORT = process.env.PORT || 10000;
+
+// Middleware di fallback per qualsiasi rotta di catalogo/ricerca inviata da BitChord
+const handleCatalogRequest = (req, res) => {
+  res.json({ metas: [] });
+};
 
 // ==========================================
 // ADDON 1: Deplexo HiRes Bypass
 // ==========================================
-const deplexoBuilder = new addonBuilder({
-  id: "com.deplexo.bitchord.hires",
-  version: "1.0.0",
-  name: "BitChord HiRes Addon",
-  description: "Bypasses lossless playback limitation with auto-fallback stream configuration.",
-  resources: ["stream", "catalog"],
-  types: ["music"],
-  catalogs: [
-    {
-      type: "music",
-      id: "deplexo_catalog",
-      name: "Deplexo HiRes",
-      extra: [{ name: "search", isRequired: false }]
-    }
-  ]
+app.get('/deplexo/manifest.json', (req, res) => {
+  res.json({
+    id: "com.deplexo.bitchord.hires",
+    version: "1.0.7",
+    name: "BitChord HiRes Addon",
+    description: "Bypasses lossless playback limitation with auto-fallback stream configuration.",
+    resources: ["stream", "catalog"],
+    types: ["music"],
+    catalogs: [
+      {
+        type: "music",
+        id: "deplexo_catalog",
+        name: "Deplexo HiRes",
+        extra: [{ name: "search", isRequired: false }]
+      }
+    ]
+  });
 });
 
-deplexoBuilder.defineCatalogHandler(() => Promise.resolve({ metas: [] }));
+// Gestione rotte cataloghi e ricerca per Deplexo
+app.get('/deplexo/catalog/*', handleCatalogRequest);
 
-deplexoBuilder.defineStreamHandler((args) => {
-  const trackId = args.id;
+// Gestione flussi audio per Deplexo
+app.get('/deplexo/stream/:type/:id.json', (req, res) => {
+  const trackId = req.params.id;
   const targetHost = "https://bitchord-hires-addon.de.deplexo.com";
 
-  return Promise.resolve({
+  res.json({
     streams: [
       {
         name: "Lossless (FLAC)",
@@ -47,44 +58,46 @@ deplexoBuilder.defineStreamHandler((args) => {
       {
         name: "High Quality (AAC)",
         title: "AAC 320kbps (Bypass Fallback)",
-        url: `${targetHost}/pipe?id=${trackId}&quality=high`
+        url: `${targetHost}/pipe?id=${targetHost}&quality=high`
       }
     ]
   });
 });
-
-const deplexoInterface = deplexoBuilder.getInterface();
 
 // ==========================================
 // ADDON 2: Aurix DPDNS Bypass
 // ==========================================
 const TOKEN = "free_rLnRPnC6oZF5gvAx";
 
-const aurixBuilder = new addonBuilder({
-  id: "org.dpdns.aurix.bitchord.free",
-  version: "1.0.0",
-  name: "Aurix Free Lossless Bypass",
-  description: "Bypasses BitChord native decoder strict check for Aurix token streams.",
-  resources: ["stream", "catalog"],
-  types: ["music"],
-  idPrefixes: ["aurix:"],
-  catalogs: [
-    {
-      type: "music",
-      id: "aurix_catalog",
-      name: "Aurix Free",
-      extra: [{ name: "search", isRequired: false }]
-    }
-  ]
+app.get('/aurix/manifest.json', (req, res) => {
+  res.json({
+    id: "org.dpdns.aurix.bitchord.free",
+    version: "1.1.5",
+    name: "Aurix Free Lossless Bypass",
+    description: "Bypasses BitChord native decoder strict check for Aurix token streams.",
+    resources: ["stream", "catalog"],
+    types: ["music"],
+    idPrefixes: ["aurix:"],
+    catalogs: [
+      {
+        type: "music",
+        id: "aurix_catalog",
+        name: "Aurix Free",
+        extra: [{ name: "search", isRequired: false }]
+      }
+    ]
+  });
 });
 
-aurixBuilder.defineCatalogHandler(() => Promise.resolve({ metas: [] }));
+// Gestione rotte cataloghi e ricerca per Aurix
+app.get('/aurix/catalog/*', handleCatalogRequest);
 
-aurixBuilder.defineStreamHandler((args) => {
-  const trackId = args.id;
+// Gestione flussi audio per Aurix
+app.get('/aurix/stream/:type/:id.json', (req, res) => {
+  const trackId = req.params.id;
   const baseUrl = `https://addon-2.aurix.dpdns.org/${TOKEN}`;
 
-  return Promise.resolve({
+  res.json({
     streams: [
       {
         title: "FLAC Lossless (Bypassed)",
@@ -101,17 +114,6 @@ aurixBuilder.defineStreamHandler((args) => {
       }
     ]
   });
-});
-
-const aurixInterface = aurixBuilder.getInterface();
-
-// Router Express per gestire i due addon affiancati
-app.use('/deplexo', (req, res) => {
-  deplexoInterface.get(req, res);
-});
-
-app.use('/aurix', (req, res) => {
-  aurixInterface.get(req, res);
 });
 
 app.listen(PORT, () => {
