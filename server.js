@@ -6,37 +6,20 @@ app.use(cors());
 
 const PORT = process.env.PORT || 10000;
 
-// Middleware di fallback per qualsiasi rotta di catalogo/ricerca inviata da BitChord
-const handleCatalogRequest = (req, res) => {
-  res.json({ metas: [] });
-};
-
 // ==========================================
 // ADDON 1: Deplexo HiRes Bypass
 // ==========================================
 app.get('/deplexo/manifest.json', (req, res) => {
   res.json({
     id: "com.deplexo.bitchord.hires",
-    version: "1.0.7",
+    version: "1.0.8",
     name: "BitChord HiRes Addon",
     description: "Bypasses lossless playback limitation with auto-fallback stream configuration.",
-    resources: ["stream", "catalog"],
-    types: ["music"],
-    catalogs: [
-      {
-        type: "music",
-        id: "deplexo_catalog",
-        name: "Deplexo HiRes",
-        extra: [{ name: "search", isRequired: false }]
-      }
-    ]
+    resources: ["stream"],
+    types: ["music"]
   });
 });
 
-// Gestione rotte cataloghi e ricerca per Deplexo
-app.get('/deplexo/catalog/*', handleCatalogRequest);
-
-// Gestione flussi audio per Deplexo
 app.get('/deplexo/stream/:type/:id.json', (req, res) => {
   const trackId = req.params.id;
   const targetHost = "https://bitchord-hires-addon.de.deplexo.com";
@@ -58,7 +41,7 @@ app.get('/deplexo/stream/:type/:id.json', (req, res) => {
       {
         name: "High Quality (AAC)",
         title: "AAC 320kbps (Bypass Fallback)",
-        url: `${targetHost}/pipe?id=${targetHost}&quality=high`
+        url: `${targetHost}/pipe?id=${trackId}&quality=high`
       }
     ]
   });
@@ -72,27 +55,15 @@ const TOKEN = "free_rLnRPnC6oZF5gvAx";
 app.get('/aurix/manifest.json', (req, res) => {
   res.json({
     id: "org.dpdns.aurix.bitchord.free",
-    version: "1.1.5",
+    version: "1.1.6",
     name: "Aurix Free Lossless Bypass",
     description: "Bypasses BitChord native decoder strict check for Aurix token streams.",
-    resources: ["stream", "catalog"],
+    resources: ["stream"],
     types: ["music"],
-    idPrefixes: ["aurix:"],
-    catalogs: [
-      {
-        type: "music",
-        id: "aurix_catalog",
-        name: "Aurix Free",
-        extra: [{ name: "search", isRequired: false }]
-      }
-    ]
+    idPrefixes: ["aurix:"]
   });
 });
 
-// Gestione rotte cataloghi e ricerca per Aurix
-app.get('/aurix/catalog/*', handleCatalogRequest);
-
-// Gestione flussi audio per Aurix
 app.get('/aurix/stream/:type/:id.json', (req, res) => {
   const trackId = req.params.id;
   const baseUrl = `https://addon-2.aurix.dpdns.org/${TOKEN}`;
