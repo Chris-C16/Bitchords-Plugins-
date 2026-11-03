@@ -12,12 +12,24 @@ const PORT = process.env.PORT || 10000;
 app.get('/deplexo/manifest.json', (req, res) => {
   res.json({
     id: "com.deplexo.bitchord.hires",
-    version: "1.0.8",
+    version: "1.0.9",
     name: "BitChord HiRes Addon",
     description: "Bypasses lossless playback limitation with auto-fallback stream configuration.",
-    resources: ["stream"],
-    types: ["music"]
+    resources: ["stream", "catalog"],
+    types: ["music"],
+    catalogs: [
+      {
+        type: "music",
+        id: "deplexo_search",
+        name: "Deplexo Search",
+        extra: [{ name: "search", isRequired: true }]
+      }
+    ]
   });
+});
+
+app.get('/deplexo/catalog/:type/:id.json', (req, res) => {
+  res.json({ metas: [] });
 });
 
 app.get('/deplexo/stream/:type/:id.json', (req, res) => {
@@ -55,13 +67,25 @@ const TOKEN = "free_rLnRPnC6oZF5gvAx";
 app.get('/aurix/manifest.json', (req, res) => {
   res.json({
     id: "org.dpdns.aurix.bitchord.free",
-    version: "1.1.6",
+    version: "1.1.7",
     name: "Aurix Free Lossless Bypass",
     description: "Bypasses BitChord native decoder strict check for Aurix token streams.",
-    resources: ["stream"],
+    resources: ["stream", "catalog"],
     types: ["music"],
-    idPrefixes: ["aurix:"]
+    idPrefixes: ["aurix:"],
+    catalogs: [
+      {
+        type: "music",
+        id: "aurix_search",
+        name: "Aurix Search",
+        extra: [{ name: "search", isRequired: true }]
+      }
+    ]
   });
+});
+
+app.get('/aurix/catalog/:type/:id.json', (req, res) => {
+  res.json({ metas: [] });
 });
 
 app.get('/aurix/stream/:type/:id.json', (req, res) => {
