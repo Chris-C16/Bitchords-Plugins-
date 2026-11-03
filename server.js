@@ -30,7 +30,45 @@ app.get('/deplexo/stream/:type/:id.json', (req, res) => {
       {
         name: "Lossless (FLAC)",
         title: "FLAC 24-bit / 96kHz (Direct)",
-        url: `${targetHost}/pipe?id=${trackId}&quality=flac`, behaviorHints: { notSupportedFallback: true, proxyHeaders: { "user-agent": "BitChordPlayer/2.0", "accept": "audio/flac, audio/mp4, audio/*" } } }, { name: "High Quality (AAC)", title: "AAC 320kbps (Bypass Fallback)", url: `${targetHost}/pipe?id=${trackId}&quality=high` } ] }); });  // ========================================== // ADDON 2: Aurix DPDNS Bypass // ========================================== const TOKEN = "free_rLnRPnC6oZF5gvAx";  app.get('/aurix/manifest.json', (req, res) => { res.json({ id: "org.dpdns.aurix.bitchord.free", version: "1.1.1", name: "Aurix Free Lossless Bypass", description: "Bypasses BitChord native decoder strict check for Aurix token streams.", resources: ["stream", "catalog"], types: ["music"], idPrefixes: ["aurix:"], catalogs: [] }); });  app.get('/aurix/stream/:type/:id.json', (req, res) => { const trackId = req.params.id; const baseUrl = `https://addon-2.aurix.dpdns.org/${TOKEN}`;
+        url: `${targetHost}/pipe?id=${trackId}&quality=flac`,
+        behaviorHints: {
+          notSupportedFallback: true,
+          proxyHeaders: {
+            "user-agent": "BitChordPlayer/2.0",
+            "accept": "audio/flac, audio/mp4, audio/*"
+          }
+        }
+      },
+      {
+        name: "High Quality (AAC)",
+        title: "AAC 320kbps (Bypass Fallback)",
+        url: `${targetHost}/pipe?id=${trackId}&quality=high`
+      }
+    ]
+  });
+});
+
+// ==========================================
+// ADDON 2: Aurix DPDNS Bypass
+// ==========================================
+const TOKEN = "free_rLnRPnC6oZF5gvAx";
+
+app.get('/aurix/manifest.json', (req, res) => {
+  res.json({
+    id: "org.dpdns.aurix.bitchord.free",
+    version: "1.1.1",
+    name: "Aurix Free Lossless Bypass",
+    description: "Bypasses BitChord native decoder strict check for Aurix token streams.",
+    resources: ["stream", "catalog"],
+    types: ["music"],
+    idPrefixes: ["aurix:"],
+    catalogs: []
+  });
+});
+
+app.get('/aurix/stream/:type/:id.json', (req, res) => {
+  const trackId = req.params.id;
+  const baseUrl = `https://addon-2.aurix.dpdns.org/${TOKEN}`;
 
   res.json({
     streams: [
