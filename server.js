@@ -8,35 +8,39 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
 
-// Funzione che rimuove il blocco checkValidLossless: 1 di BitChord
-function removeLosslessLock(obj) {
-  if (!obj || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(removeLosslessLock);
+const DEPLEXO_BASE = "https://bitchord-hires-addon.de.deplexo.com";
+const AURIX_BASE = "https://addon-2.aurix.dpdns.org/free_rLnRPnC6oZF5gvAx";
 
-  delete obj.checkValidLossless;
-  delete obj.requiresLosslessOutput;
-  delete obj.losslessOnly;
-  delete obj.requireLossless;
-
-  for (const key of Object.keys(obj)) {
-    if (typeof obj[key] === 'object' && obj[key] !== null) {
-      removeLosslessLock(obj[key]);
-    }
-  }
-  return obj;
+// Rimuove il blocco lossless dai JSON mostrati nelle tue foto
+function unlockManifest(data) {
+  if (!data || typeof data !== 'object') return data;
+  delete data.checkValidLossless;
+  data.allowDownloads = true;
+  return data;
 }
 
-async function forwardRequest(targetBase, subPath, proxyPrefix, req, res) {
+async function handleProxy(addonType, req, res) {
   try {
-    const cleanBase = targetBase.replace(/\/manifest\.json$/, '').replace(/\/$/, '');
-    const cleanSub = (!subPath || subPath === '/') ? '/manifest.json' : subPath;
-    const targetUrl = `${cleanBase}${cleanSub}`;
+    const baseUrl = addonType === 'deplexo' ? DEPLEXO_BASE : AURIX_BASE;
+    let subPath = req.originalUrl.replace(new RegExp(`^/${addonType}`), '');
 
-    console.log(`[PROXY] ${req.method} -> ${targetUrl}`);
+    if (addonType === 'aurix') {
+      subPath = subPath.replace(/^\/free_rLnRPnC6oZF5gvAx/, '');
+    }
+
+    let targetUrl;
+    const isManifestRequest = (subPath === '' || subPath === '/' || subPath === '/manifest.json');
+
+    if (isManifestRequest) {
+      // Deplexo risponde sulla radice /, mentre Aurix vuole /manifest.json
+      targetUrl = addonType === 'deplexo' ? `${DEPLEXO_BASE}/` : `${AURIX_BASE}/manifest.json`;
+    } else {
+      targetUrl = `${baseUrl}${subPath}`;
+    }
 
     const headers = {
-      'user-agent': req.headers['user-agent'] || 'BitChord/1.8.2 (Android)',
-      'accept': req.headers['accept'] || 'application/json, */*'
+      'user-agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      'accept': req.headers['accept'] || '*/*'
     };
     if (req.headers['range']) headers['range'] = req.headers['range'];
     if (req.headers['content-type']) headers['content-type'] = req.headers['content-type'];
@@ -51,9 +55,17 @@ async function forwardRequest(targetBase, subPath, proxyPrefix, req, res) {
       fetchOptions.body = JSON.stringify(req.body);
     }
 
-    const upstreamRes = await fetch(targetUrl, fetchOptions);
+    let upstreamRes = await fetch(targetUrl, fetchOptions);
 
-    // Gestione redirect diretti allo stream FLAC
+    // Fallback automatico: se Deplexo o Aurix danno 404 sul manifest, prova l'altro formato
+    if (upstreamRes.status === 404 && isManifestRequest) {
+      const altUrl = targetUrl.endsWith('/manifest.json')
+        ? `${baseUrl}/`
+        : `${baseUrl}/manifest.json`;
+      upstreamRes = await fetch(altUrl, fetchOptions);
+    }
+
+    // Se l'addon fa redirect verso il file FLAC, reindirizza BitChord direttamente
     if ([301, 302, 303, 307, 308].includes(upstreamRes.status)) {
       const location = upstreamRes.headers.get('location');
       if (location) return res.redirect(upstreamRes.status, location);
@@ -61,24 +73,18 @@ async function forwardRequest(targetBase, subPath, proxyPrefix, req, res) {
 
     const contentType = upstreamRes.headers.get('content-type') || '';
 
-    // Intercetta tutti i JSON (manifest, search, stream) e rimuove checkValidLossless
-    if (cleanSub.includes('manifest.json') || contentType.includes('application/json')) {
+    if (isManifestRequest || contentType.includes('application/json')) {
       const text = await upstreamRes.text();
       try {
-        let data = JSON.parse(text);
-        data = removeLosslessLock(data);
-
-        const proxyFullBase = `https://${req.get('host')}${proxyPrefix}`;
-        let jsonStr = JSON.stringify(data);
-        jsonStr = jsonStr.replaceAll(cleanBase, proxyFullBase);
-
-        return res.status(upstreamRes.status).set('Content-Type', 'application/json').send(jsonStr);
+        let json = JSON.parse(text);
+        json = unlockManifest(json);
+        return res.status(upstreamRes.status).set('Content-Type', 'application/json').send(JSON.stringify(json));
       } catch {
         return res.status(upstreamRes.status).set('Content-Type', contentType || 'text/plain').send(text);
       }
     }
 
-    // Pass-through per flussi audio
+    // Pass-through per lo streaming audio
     res.status(upstreamRes.status);
     ['content-type', 'content-length', 'accept-ranges', 'content-range', 'cache-control'].forEach((h) => {
       const val = upstreamRes.headers.get(h);
@@ -91,29 +97,16 @@ async function forwardRequest(targetBase, subPath, proxyPrefix, req, res) {
       res.end();
     }
   } catch (err) {
-    console.error('Errore Proxy:', err);
+    console.error(`Errore [${addonType}]:`, err);
     res.status(500).json({ error: err.message });
   }
 }
 
-// 1. ROTTA AURIX (con il tuo token già configurato)
-app.use('/aurix', (req, res) => {
-  const base = "https://addon-2.aurix.dpdns.org/free_rLnRPnC6oZF5gvAx";
-  const subPath = req.originalUrl
-    .replace(/^\/aurix/, '')
-    .replace(/^\/free_rLnRPnC6oZF5gvAx/, '');
-  forwardRequest(base, subPath, '/aurix', req, res);
-});
-
-// 2. ROTTA DEPLEXO (accetta anche il token generato dalla pagina Deplexo)
-app.use('/deplexo', (req, res) => {
-  const base = "https://bitchord-hires-addon.de.deplexo.com";
-  const subPath = req.originalUrl.replace(/^\/deplexo/, '');
-  forwardRequest(base, subPath, '/deplexo', req, res);
-});
+app.use('/deplexo', (req, res) => handleProxy('deplexo', req, res));
+app.use('/aurix', (req, res) => handleProxy('aurix', req, res));
 
 app.get('/', (req, res) => {
-  res.send('BitChord Lossless Unlocker Online!');
+  res.send('BitChord Proxy Attivo!');
 });
 
 app.listen(PORT, () => {
