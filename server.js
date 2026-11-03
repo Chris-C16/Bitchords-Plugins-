@@ -1,45 +1,36 @@
 import express from 'express';
-import cors from 'cors';
+import { addonBuilder } from 'stremio-addon-sdk';
 
 const app = express();
-app.use(cors());
-
 const PORT = process.env.PORT || 3000;
 
 // ==========================================
 // ADDON 1: Deplexo HiRes Bypass
 // ==========================================
-app.get('/deplexo/manifest.json', (req, res) => {
-  res.json({
-    id: "com.deplexo.bitchord.hires",
-    version: "1.0.6",
-    name: "BitChord HiRes Addon",
-    description: "Bypasses lossless playback limitation with auto-fallback stream configuration.",
-    resources: ["stream", "catalog"],
-    types: ["music"],
-    catalogs: [
-      {
-        type: "music",
-        id: "deplexo_catalog",
-        name: "Deplexo HiRes",
-        extraSupported: ["search", "genre"],
-        extra: [
-          { name: "search", isRequired: false }
-        ]
-      }
-    ]
-  });
+const deplexoBuilder = new addonBuilder({
+  id: "com.deplexo.bitchord.hires",
+  version: "1.0.0",
+  name: "BitChord HiRes Addon",
+  description: "Bypasses lossless playback limitation with auto-fallback stream configuration.",
+  resources: ["stream", "catalog"],
+  types: ["music"],
+  catalogs: [
+    {
+      type: "music",
+      id: "deplexo_catalog",
+      name: "Deplexo HiRes",
+      extra: [{ name: "search", isRequired: false }]
+    }
+  ]
 });
 
-app.get('/deplexo/catalog/:type/:id.json', (req, res) => {
-  res.json({ metas: [] });
-});
+deplexoBuilder.defineCatalogHandler(() => Promise.resolve({ metas: [] }));
 
-app.get('/deplexo/stream/:type/:id.json', (req, res) => {
-  const trackId = req.params.id;
+deplexoBuilder.defineStreamHandler((args) => {
+  const trackId = args.id;
   const targetHost = "https://bitchord-hires-addon.de.deplexo.com";
 
-  res.json({
+  return Promise.resolve({
     streams: [
       {
         name: "Lossless (FLAC)",
@@ -62,42 +53,38 @@ app.get('/deplexo/stream/:type/:id.json', (req, res) => {
   });
 });
 
+const deplexoInterface = deplexoBuilder.getInterface();
+
 // ==========================================
 // ADDON 2: Aurix DPDNS Bypass
 // ==========================================
 const TOKEN = "free_rLnRPnC6oZF5gvAx";
 
-app.get('/aurix/manifest.json', (req, res) => {
-  res.json({
-    id: "org.dpdns.aurix.bitchord.free",
-    version: "1.1.4",
-    name: "Aurix Free Lossless Bypass",
-    description: "Bypasses BitChord native decoder strict check for Aurix token streams.",
-    resources: ["stream", "catalog"],
-    types: ["music"],
-    catalogs: [
-      {
-        type: "music",
-        id: "aurix_catalog",
-        name: "Aurix Free",
-        extraSupported: ["search", "genre"],
-        extra: [
-          { name: "search", isRequired: false }
-        ]
-      }
-    ]
-  });
+const aurixBuilder = new addonBuilder({
+  id: "org.dpdns.aurix.bitchord.free",
+  version: "1.0.0",
+  name: "Aurix Free Lossless Bypass",
+  description: "Bypasses BitChord native decoder strict check for Aurix token streams.",
+  resources: ["stream", "catalog"],
+  types: ["music"],
+  idPrefixes: ["aurix:"],
+  catalogs: [
+    {
+      type: "music",
+      id: "aurix_catalog",
+      name: "Aurix Free",
+      extra: [{ name: "search", isRequired: false }]
+    }
+  ]
 });
 
-app.get('/aurix/catalog/:type/:id.json', (req, res) => {
-  res.json({ metas: [] });
-});
+aurixBuilder.defineCatalogHandler(() => Promise.resolve({ metas: [] }));
 
-app.get('/aurix/stream/:type/:id.json', (req, res) => {
-  const trackId = req.params.id;
+aurixBuilder.defineStreamHandler((args) => {
+  const trackId = args.id;
   const baseUrl = `https://addon-2.aurix.dpdns.org/${TOKEN}`;
 
-  res.json({
+  return Promise.resolve({
     streams: [
       {
         title: "FLAC Lossless (Bypassed)",
@@ -114,6 +101,17 @@ app.get('/aurix/stream/:type/:id.json', (req, res) => {
       }
     ]
   });
+});
+
+const aurixInterface = aurixBuilder.getInterface();
+
+// Router Express per gestire i due addon affiancati
+app.use('/deplexo', (req, res) => {
+  deplexoInterface.get(req, res);
+});
+
+app.use('/aurix', (req, res) => {
+  aurixInterface.get(req, res);
 });
 
 app.listen(PORT, () => {
