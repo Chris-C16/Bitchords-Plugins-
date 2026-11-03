@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 app.get('/deplexo/manifest.json', (req, res) => {
   res.json({
     id: "com.deplexo.bitchord.hires",
-    version: "1.0.5",
+    version: "1.0.6",
     name: "BitChord HiRes Addon",
     description: "Bypasses lossless playback limitation with auto-fallback stream configuration.",
     resources: ["stream", "catalog"],
@@ -22,6 +22,7 @@ app.get('/deplexo/manifest.json', (req, res) => {
         type: "music",
         id: "deplexo_catalog",
         name: "Deplexo HiRes",
+        extraSupported: ["search", "genre"],
         extra: [
           { name: "search", isRequired: false }
         ]
@@ -69,7 +70,7 @@ const TOKEN = "free_rLnRPnC6oZF5gvAx";
 app.get('/aurix/manifest.json', (req, res) => {
   res.json({
     id: "org.dpdns.aurix.bitchord.free",
-    version: "1.1.3",
+    version: "1.1.4",
     name: "Aurix Free Lossless Bypass",
     description: "Bypasses BitChord native decoder strict check for Aurix token streams.",
     resources: ["stream", "catalog"],
@@ -79,6 +80,7 @@ app.get('/aurix/manifest.json', (req, res) => {
         type: "music",
         id: "aurix_catalog",
         name: "Aurix Free",
+        extraSupported: ["search", "genre"],
         extra: [
           { name: "search", isRequired: false }
         ]
