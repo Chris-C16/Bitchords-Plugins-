@@ -8,11 +8,9 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
 
-// I tuoi nuovi link aggiornati e funzionanti
 const DEPLEXO_BASE = "https://heisenbergbackaaahh.de.deplexo.com/a";
 const AURIX_BASE = "https://addon-2.aurix.dpdns.org/free_rLnRPnC6oZF5gvAx";
 
-// Rimuove il blocco lossless e abilita i download
 function unlockManifest(data) {
   if (!data || typeof data !== 'object') return data;
   delete data.checkValidLossless;
@@ -69,7 +67,6 @@ async function handleProxy(addonType, req, res) {
       if (location) return res.redirect(upstreamRes.status, location);
     }
 
-    // CORRETTO: parentesi tonda anziché quadra
     const contentType = upstreamRes.headers.get('content-type') || '';
 
     if (isManifestRequest || contentType.includes('application/json')) {
@@ -103,8 +100,9 @@ async function handleProxy(addonType, req, res) {
 app.use('/deplexo', (req, res) => handleProxy('deplexo', req, res));
 app.use('/aurix', (req, res) => handleProxy('aurix', req, res));
 
+// Questa rotta risolve il problema della schermata bianca e del Cannot GET /
 app.get('/', (req, res) => {
-  res.send('BitChord Proxy Attivo!');
+  res.send('BitChord Proxy Attivo e Funzionante!');
 });
 
 app.listen(PORT, () => {
