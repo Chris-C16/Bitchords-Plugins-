@@ -8,10 +8,11 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
 
-const DEPLEXO_BASE = "https://bitchord-hires-addon.de.deplexo.com";
+// I tuoi nuovi link aggiornati e funzionanti
+const DEPLEXO_BASE = "https://heisenbergbackaaahh.de.deplexo.com/a";
 const AURIX_BASE = "https://addon-2.aurix.dpdns.org/free_rLnRPnC6oZF5gvAx";
 
-// Rimuove il blocco lossless dai JSON mostrati nelle tue foto
+// Rimuove il blocco lossless e abilita i download
 function unlockManifest(data) {
   if (!data || typeof data !== 'object') return data;
   delete data.checkValidLossless;
@@ -32,8 +33,7 @@ async function handleProxy(addonType, req, res) {
     const isManifestRequest = (subPath === '' || subPath === '/' || subPath === '/manifest.json');
 
     if (isManifestRequest) {
-      // Deplexo risponde sulla radice /, mentre Aurix vuole /manifest.json
-      targetUrl = addonType === 'deplexo' ? `${DEPLEXO_BASE}/` : `${AURIX_BASE}/manifest.json`;
+      targetUrl = `${baseUrl}/manifest.json`;
     } else {
       targetUrl = `${baseUrl}${subPath}`;
     }
@@ -57,21 +57,19 @@ async function handleProxy(addonType, req, res) {
 
     let upstreamRes = await fetch(targetUrl, fetchOptions);
 
-    // Fallback automatico: se Deplexo o Aurix danno 404 sul manifest, prova l'altro formato
     if (upstreamRes.status === 404 && isManifestRequest) {
       const altUrl = targetUrl.endsWith('/manifest.json')
-        ? `${baseUrl}/`
-        : `${baseUrl}/manifest.json`;
+        ? targetUrl.replace(/\/manifest\.json$/, '')
+        : `${targetUrl}/manifest.json`;
       upstreamRes = await fetch(altUrl, fetchOptions);
     }
 
-    // Se l'addon fa redirect verso il file FLAC, reindirizza BitChord direttamente
     if ([301, 302, 303, 307, 308].includes(upstreamRes.status)) {
       const location = upstreamRes.headers.get('location');
       if (location) return res.redirect(upstreamRes.status, location);
     }
 
-    const contentType = upstreamRes.headers.get('content-type') || '';
+    const contentType = upstreamRes.headers.get('content-type'] || '';
 
     if (isManifestRequest || contentType.includes('application/json')) {
       const text = await upstreamRes.text();
@@ -84,7 +82,6 @@ async function handleProxy(addonType, req, res) {
       }
     }
 
-    // Pass-through per lo streaming audio
     res.status(upstreamRes.status);
     ['content-type', 'content-length', 'accept-ranges', 'content-range', 'cache-control'].forEach((h) => {
       const val = upstreamRes.headers.get(h);
