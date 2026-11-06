@@ -69,7 +69,8 @@ async function handleProxy(addonType, req, res) {
       if (location) return res.redirect(upstreamRes.status, location);
     }
 
-    const contentType = upstreamRes.headers.get('content-type'] || '';
+    // CORRETTO: parentesi tonda anziché quadra
+    const contentType = upstreamRes.headers.get('content-type') || '';
 
     if (isManifestRequest || contentType.includes('application/json')) {
       const text = await upstreamRes.text();
